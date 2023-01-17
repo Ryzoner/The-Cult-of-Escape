@@ -15,7 +15,8 @@ class Player:
     def __init__(self, position: list,
                  hp: int = 20,
                  skin_name: str = "red"):
-        self.jumpCount = 10
+        self.jump_сount = 10
+        self.jump_time = 0.3
         self.last_stand_func_call = 0
         self.start_position: list = position
         self.skin_name: str = skin_name
@@ -37,6 +38,7 @@ class Player:
         self.skin_group.add(self.skin)
 
     def set_skin(self, skin_name: str, skin_type: str = ''):
+        #TODO Добавить словарь со всеми скинами
         game_path: str = self.settings["path"]
         skin_file_name: str = f'santa_{skin_name}_skin.png'
         skin_name: str = skin_name.rstrip(skin_type + '_')
@@ -50,6 +52,7 @@ class Player:
         sprite.image.set_colorkey(pygame.Color('white'))
         sprite.image = pygame.transform.scale(sprite.image, (32, 32))
         sprite.rect = sprite.image.get_rect()
+        sprite.rect.x, sprite.rect.y = self.start_position
 
         return sprite
 
@@ -110,45 +113,41 @@ class Player:
             self.set_group()
             
     def draw_jump(self):
-        if self.jumpCount >= -10:
-            neg = 1
+        """
+        F = (Parabola ** 2) * jump_time * neg
+        neg - если Парабола увеличивается neg = -1 иначе 1
+        """
+        if self.jump_count >= -10:
+            neg = -1 if self.jump_count < 0 else 1
             if self.state['flip']:
                 self.flip()
-            if self.jumpCount < 0:
-                neg -= 1
-            self.skin.rect.y -= self.jumpCount ** 2 * 0.1 * neg
-            self.jumpCount -= 1
+            self.skin.rect.y -= neg * ((self.jump_count ** 2) / 2)
+            self.jump_count -= 1
         else:
-            self.jumpCount = 10
+            self.jump_count = 10
             self.state['jump'] = False
             self.state['sit'] = True
             self.stand()
             
     def move(self, direction: str):
         if not self.state['sit']:
+            i = 60 if self.state['jump'] else 5
             if direction == 'right':
                 if self.state['flip']:
                     self.flip()
-                if self.is_in_window([self.skin.rect.x + 1, self.skin.rect.y]):
-                    self.skin.rect.x += 5
+                if self.is_in_window([self.skin.rect.x + i, self.skin.rect.y]):
+                    self.skin.rect.x += i
             elif direction == 'left':
                 if not self.state['flip']:
                     self.flip()
-                if self.is_in_window([self.skin.rect.x - 1, self.skn.rect.t]):
-                    self.skin.rect.x -= 5
+                if self.is_in_window([self.skin.rect.x - i, self.skn.rect.t]):
+                    self.skin.rect.x -= i
             self.sounds['move'].play()
         else:
             if not self.state['flip'] and direction == 'left':
                 self.flip()
             if self.state['flip'] and direction == 'right':
                 self.flip()
-
-class Level:
-    __slots__ = ["name", "difficulty"]
-
-    def __init__(self, name: str, difficulty: str):
-        self.name = name
-        self.difficulty = difficulty
 
 
 class Settings:
@@ -190,7 +189,7 @@ class Game:
         return screen
     
     def start(self):
-        self.player: Player = Player([0, 100 - 32], 2, self.settings['skin'])
+        self.player: Player = Player([0, 400 - 32], 2, self.settings['skin'])
         self.screen = self.get_screen(self.settings['window_size'])
         fps = self.settings['fps']
         background_color = self.settings['background_color']
@@ -219,12 +218,12 @@ class Game:
             """
             self.clock.tick(fps)
             self.screen.fill(background_color)
-            self.run_main_window()
+            self.draw_level()
             pygame.display.update()
         pygame.quit()
         exit()
     
-    def run_main_window(self):
+    def draw_level(self):
         self.player.skin_group.draw(self.screen)
         
 
