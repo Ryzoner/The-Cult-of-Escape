@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
+
 import pygame
 from os.path import exists, dirname, abspath
 from configparser import ConfigParser, SectionProxy
 from time import time
-from threading import Thread
 from sqlite3 import connect
 
 pygame.mixer.pre_init(44100, -16, 1, 512)
@@ -14,8 +15,10 @@ SETTINGS_FILE = 'settings.ini'
 
 class SpriteError(Exception):
     """Can't find sprite file"""
+    __slots__ = ['text']
     
     def __init__(self):
+        super().__init__()
         self.text = 'Не удается найти файл спрайта'
         
 
@@ -28,13 +31,13 @@ class Sprite:
         *to_spawn - move sprite to spawn position
         *teleport - teleport sprite to selected position
     """
-    __slots__ = ['start_position', 'hp', 'skin', 'settings', 'skin_group',
-                 'width', 'height', 'folder_path', 'skin_name']
+    __slots__ = ['start_position', 'hit_points', 'skin', 'settings',
+                 'skin_group', 'width', 'height', 'folder_path', 'skin_name']
     
-    def __init__(self, position: list, hp: int, skin_name: str,
+    def __init__(self, position: list, hit_points: int, skin_name: str,
                  folder_path: str):
         self.start_position: list = position
-        self.hp: int = hp
+        self.hit_points: int = hit_points
         self.skin_name: str = skin_name
         self.folder_path: str = folder_path
         self.settings: dict = Settings(SETTINGS_FILE).settings()
@@ -57,15 +60,14 @@ class Sprite:
     def full_file_path(self, skin_path: str) -> str:
         game_path: str = self.settings['path']
         sprite_folder = f'{game_path}/{self.folder_path}'
-        full_skin_path = f'{sprite_folder}/{self.skin_name}/{skin_path}'
-        return full_skin_path
+        return f'{sprite_folder}/{self.skin_name}/{skin_path}'
 
     def set_skin(self, skin_path: str) -> pygame.sprite.Sprite:
         full_skin_path = self.full_file_path(skin_path)
         if not exists(full_skin_path):
             raise SpriteError
         sprite = pygame.sprite.Sprite()
-        sprite.image = pygame.image.load(full_skin_path)
+        sprite.image = pygame.image.load(full_skin_path).convert_alpha()
         sprite.rect = sprite.image.get_rect()
         sprite.rect.x, sprite.rect.y = self.start_position
         return sprite
@@ -74,26 +76,26 @@ class Sprite:
         full_skin_path = self.full_file_path(skin_path)
         if not exists(full_skin_path):
             raise SpriteError
-        x, y = self.skin.rect.x, self.skin.rect.y
+        current_position = self.skin.rect.x, self.skin.rect.y
         self.skin.image = pygame.image.load(full_skin_path)
         self.skin.rect = self.skin.image.get_rect()
-        self.skin.rect.x, self.skin.rect.y = x, y
+        self.skin.rect.x, self.skin.rect.y = current_position
 
     def is_in_window(self, position: list) -> bool:
         x: int = position[0]
-        y: int = position[1]
         if x not in range(self.settings['window_size'][0] + self.width):
             return False
-        if y not in range(self.settings['window_size'][1] + self.height):
-            return False
-        return True
+        y: int = position[1]
+        return y in range(self.settings['window_size'][1] + self.height)
 
 
 class DataBase:
-    __slots__ = ['sound_db_path', 'selected_db_path']
+    __slots__ = ['sound_db_path', 'selected_db_path', 'font_db_path']
 
     def __init__(self, db_folder_path: str):
         self.sound_db_path: str = f'{db_folder_path}/sounds.db'
+        self.font_db_path: str = f'{db_folder_path}/fonts.db'
+        self.selected_db_path = self.sound_db_path
 
     def execute(self, command: str) -> str:
         with connect(self.selected_db_path) as db:
@@ -104,6 +106,12 @@ class DataBase:
     def get_sounds(self) -> list([tuple, tuple, tuple, ...]):
         self.selected_db_path = self.sound_db_path
         return self.execute('SELECT *\nFROM sounds')
+    
+    def get_fonts(self, name) -> str:
+        self.selected_db_path = self.font_db_path
+        result = self.execute(
+            'SELECT path/nFROM fonts\nWHERE name = "{name}"')
+        return result[0][0]
 
 
 class Sounds:
@@ -121,6 +129,10 @@ class Sounds:
 
     def play(self, name, loops=1) -> None:
         self.sounds[name]['sound'].play(loops)
+        
+    def stop_all(self) -> None:
+        for name in self.sounds:
+            self.sounds[name]['sound'].stop()
 
 
 class Settings:
@@ -130,11 +142,11 @@ class Settings:
         self.settings_path: str = f'./{settings_file_name}'
         self.settings_parser: ConfigParser = ConfigParser()
         self.settings = self.all_settings()
-
+        
     def all_settings(self) -> dict:
         self.settings_parser.read(self.settings_path, encoding='utf-8')
-        dirty_settings: SectionProxy = self.settings_parser[
-            'TheCultofEscape']
+        self.settings_parser.sections()
+        dirty_settings: SectionProxy = self.settings_parser['TheCultofEscape']
         fps = int(dirty_settings['fps'])
         skin: str = dirty_settings['skin']
         backround_color: str = dirty_settings['backround_color']
@@ -176,14 +188,16 @@ class Player(Sprite):
         skin_file_name_stand = f'santa_{self.skin_name}_skin.png'
         skin_file_name_sit = f'santa_{self.skin_name}_sit_skin.png'
         skin_file_name_jump = f'santa_{self.skin_name}_jump_skin.png'
-        skins = {'stand': skin_file_name_stand,
-                 'sit': skin_file_name_sit,
-                 'jump': skin_file_name_jump}
-        return skins
+        return {
+            'stand': skin_file_name_stand,
+            'sit': skin_file_name_sit,
+            'jump': skin_file_name_jump,
+        }
 
     def die(self) -> None:
-        self.hp -= 1
+        self.hit_points -= 1
         self.to_spawn()
+        self.sounds.stop_all()
         self.sounds.play('die')
 
     def turn(self, direction: str) -> None:
@@ -213,8 +227,7 @@ class Player(Sprite):
         self.sounds.play('step')
 
     def flip(self) -> None:
-        self.skin.image = pygame.transform.flip(
-            self.skin.image, True, False)
+        self.skin.image = pygame.transform.flip(self.skin.image, True, False)
         self.state['flip'] = not self.state['flip']
         self.state['flip_counter'] += 1
 
@@ -225,7 +238,7 @@ class Player(Sprite):
         self.state['jump'] = True
         self.jump_start = self.skin.rect.y
         self.change_player_skin('jump')
-        pygame.mixer.stop()
+        self.sounds.stop_all()
         self.sounds.play('jump')
 
     def sit(self) -> None:
@@ -242,9 +255,8 @@ class Player(Sprite):
             self.change_player_skin('stand')
             if self.state['flip']:
                 self.flip()
-        else:
-            if time() - self.last_stand_func_call > 0.3:
-                self.fix_jump()
+        elif time() - self.last_stand_func_call > 0.3:
+            self.fix_jump()
 
     def jump(self) -> None:
         if self.jump_count >= -10:
@@ -259,57 +271,155 @@ class Player(Sprite):
             self.skin.rect.y = self.jump_start
             self.state['jump'] = False
             pygame.key.set_repeat(1, 100)
+            pygame.mixer.unpause()
             self.state['sit'] = True
             self.stand()
 
 
-class Game:
-    def __init__(self, settings: dict):
-        self.running = True
-        self.clock: pygame.time.Clock = pygame.time.Clock()
+class Window:
+    __slots__ = ['settings', 'fps', 'mode', 'background_filler',
+                 'text_filler', 'clock', 'screen']
+    
+    def __init__(self, settings:dict, mode:str):
+        pygame.event.set_allowed(
+            [pygame.QUIT, pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]
+        )
+        pygame.key.set_repeat(1, 100)
         self.settings: dict = settings
         self.fps = self.settings['fps']
-        pygame.key.set_repeat(1, 100)
 
-    def get_screen(self, window_size: list) -> pygame.Surface:
-        screen: pygame.Surface = pygame.display.set_mode(window_size)
-        pygame.display.set_caption('The Cult of Escape')
+        self.mode = mode
+        self.background_filler = (0, 0, 0)
+        self.text_filler = (255, 255, 255)
+        self.clock: pygame.time.Clock() = pygame.time.Clock()
+        icon_path = '/assets/sprites/icons/window_icons/icon_standart.png'
+        icon = pygame.Image.load(self.settings['path'] + icon_path)
+        pygame.display.set_icon(icon)
+        self.screen = self.get_screen(
+            'The Cult of Escape'. self.settings['window_size'])
+        
+    def get_screen(self, title: str, window_size: list) -> pygame.Surface:
+        flags = pygame.DOUBLEBUF
+        screen: pygame.Surface = pygame.display.set_mode(window_size, flags)
+        screen.set_alpha(None)
+        pygame.display.set_caption(title)
         return screen
 
     def event_handler(self, event: pygame.event) -> None:
-        if event.type == pygame.QUIT:
-            self.running = False
-        if event.type == pygame.KEYDOWN:
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_RIGHT]:
-                self.santa.move('right')
-            if keys[pygame.K_LEFT]:
-                self.santa.move('left')
-            if keys[pygame.K_DOWN]:
-                self.santa.sit()
-            if keys[pygame.K_UP]:
-                self.santa.stand()
+        pass
+    
+    def draw(self) -> None:
+        pass
 
-    def start(self):
-        self.santa: Player = Player(
-            [0, self.settings['window_size'][1] - 16], 2,
-            self.settings['skin'])
-        self.screen = self.get_screen(self.settings['window_size'])
-        while self.running:
+    def game_cycle(self) -> None:
+        running = True
+        while running:
             for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
                 self.event_handler(event)
-            if self.santa.state['jump']:
-                self.santa.jump()
             self.clock.tick(self.fps)
-            self.screen.fill((0, 0, 0))
-            self.draw_level()
+            self.screen.blot(self.background_filler, [0, 0])
+            self.draw()
             pygame.display.update()
         pygame.quit()
-        exit()
+        
+        
+class Level(Window):
+    __slots__ = ['santa']
+    
+    def __init__(self, settings: dict):
+        super().__init__(settings, mode='level')
+        self.player: Player = Player(
+            [0, self.settings['window_size'][1] - 16], 2,
+            self.settings['screen'])
+    
+    def game_cycle(self) -> None:
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                self.event_handler(event)
+            if self.player.state['jump']:
+                self.player.jump()
+            self.clock.tick(self.fps)
+            self.screen.fill(self.background_filler)
+            self.draw()
+            pygame.display.update()
+        pygame.quit()
+        
+    def event_handler(self, event: pygame.event) -> None:
+        if event.type != pygame.KEYDOWN:
+            return
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_RIGHT]:
+            self.player.move('right')
+        if keys[pygame.K_LEFT]:
+            self.player.move('left')
+        if keys[pygame.K_DOWN]:
+            self.player.sit()
+        if keys[pygame.K_UP]:
+            self.player.stand()
+        
+    def draw(self) -> None:
+        self.player.skin_group.draw(self.screen)
+        
+        
+class MainWindow(Window):
+    __slots__ = ['christmas_font', 'main_heading', 'background_filler']
+    
+    def __init__(self, settings: dict):
+        super().__init__(settings, mode='main_window')
+        db_path: str = self.settings['path'] + '/assets/database'
+        db = DataBase(db_path)
+        font_path = self.settings['path'] + '/' +\
+            db.get_fonts('christmas')
+        self.christmas_font: pygame.font.Font = pygame.font.Font(
+            font_path, 50
+        )
+        self.main_heading = self.get_background_text(
+            'The Cult of Escape'
+        )
+        sprites = self.settings['path'] + '/assets/sprites/'
+        self.background_filler = pygame.image.load(
+            f'{sprites}/background/main_window_background.png'
+        )
+        
+    def draw(self) -> None:
+        self.draw_background_text()
+        
+    def draw_background_text(self) -> None:
+        self.screen.blit(*self.main_heading)
+        
+    def get_background_text(self, text: str) -> (pygame.font.Font.render, (int, int)):
+        text = self.christmas_font.render(text,
+                                          True, self.text_filler)
+        text_x = self.settings['window_size'][0] // 2 - \
+            text.get_width() // 2
+        text_y = 20
+        return text, (text_x, text_y)
+    
+    def get_buttons(self) -> None:
+        pass
+    
+    def draw_buttons(self) -> None:
+        pass
+    
 
-    def draw_level(self):
-        self.santa.skin_group.draw(self.screen)
-
-
-game = Game(Settings('settings.ini').settings)
-game.start()
+class Game:
+    __slots__ = ['game']
+    
+    def __init__(self, settings: dict, mode: str):
+        if mode == 'level':
+            self.game = Level(settings)
+        elif mode == 'main_window':
+            self.game = MainWindow(settings)
+            
+    def game_cycle(self) -> None:
+        self.game.game_cycle()
+        
+        
+game = Game(Settings(SETTINGS_FILE).settings, 'level')
+game.game_cycle()
+    
