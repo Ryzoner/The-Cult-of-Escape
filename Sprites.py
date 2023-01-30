@@ -2,18 +2,18 @@ from os.path import exists
 
 from Utils import Sounds
 
-from Errors import SpriteError
-
 import pygame
 
 
 class Sprite(pygame.sprite.Sprite):
     '''Base sprite class
+
     Initilization arguments: 
         *position - Start position of sprite : str
         *hit_points - Count of sprite lifes : int
         *skin_name - Opted skin : str
         *folder_path - Sprite folder path regarding game path: str
+
     Methods:
         *setup - Declaration of variables lika skin, height, width
         *set_group - Add skin to group
@@ -55,7 +55,8 @@ class Sprite(pygame.sprite.Sprite):
     def full_file_path(self, skin_path: str) -> str:
         game_path: str = self.settings['path']
         sprite_folder = f'{game_path}/{self.folder_path}'
-        return f'{sprite_folder}/{self.skin_name}/{skin_path}'
+        full_skin_path = f'{sprite_folder}/{self.skin_name}/{skin_path}'
+        return full_skin_path
 
     def set_skin(self, skin_path: str) -> None:
         full_skin_path = self.full_file_path(skin_path)
@@ -77,10 +78,12 @@ class Sprite(pygame.sprite.Sprite):
 
     def is_in_window(self, position: list) -> bool:
         x: int = position[0]
+        y: int = position[1]
         if x not in range(self.settings['window_size'][0] + self.width):
             return False
-        y: int = position[1]
-        return y in range(self.settings['window_size'][1] + self.height)
+        if y not in range(self.settings['window_size'][1] + self.height):
+            return False
+        return True
 
 
 class Player(Sprite):
@@ -105,11 +108,10 @@ class Player(Sprite):
         skin_file_name_stand = f'santa_{self.skin_name}_skin.png'
         skin_file_name_sit = f'santa_{self.skin_name}_sit_skin.png'
         skin_file_name_jump = f'santa_{self.skin_name}_jump_skin.png'
-        return {
-            'stand': skin_file_name_stand,
-            'sit': skin_file_name_sit,
-            'jump': skin_file_name_jump,
-        }
+        skins = {'stand': skin_file_name_stand,
+                 'sit': skin_file_name_sit,
+                 'jump': skin_file_name_jump}
+        return skins
 
     def die(self) -> None:
         self.to_spawn()
@@ -159,8 +161,11 @@ class Player(Sprite):
                 self.move_speed = 0
 
     def is_collide(self, sprite_group) -> bool:
-        return any(pygame.sprite.collide_mask(self, sprite) for sprite in sprite_group)
-    
+        for sprite in sprite_group:
+            if pygame.sprite.collide_mask(self, sprite):
+                return True
+        return False
+
     def get_collide_object(self, sprite_group):
         for sprite in sprite_group:
             if pygame.sprite.collide_mask(self, sprite):

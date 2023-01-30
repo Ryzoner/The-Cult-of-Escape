@@ -7,10 +7,12 @@ from Sprites import Player
 
 class Window:
     '''Base window class
+
     Initilization arguments: 
         *settings - Settings from 'Settings.setting' class: dict
         *mode - Mode of window //examples 'main_window', 'login_window' 
                 and etc : str
+
     Methods:
         *get_screen - Return window with selected title and size: pygame.Surface 
     '''
@@ -37,7 +39,7 @@ class Window:
         icon = pygame.image.load(self.settings['path'] + icon_path)
         pygame.display.set_icon(icon)
         self.screen = self.get_screen(
-            'Christmas Adventures', self.settings['window_size'])
+            'The Cult of Escape', self.settings['window_size'])
 
     def get_screen(self, title: str, window_size: list) -> pygame.Surface:
         flags = pygame.DOUBLEBUF
@@ -49,8 +51,10 @@ class Window:
 
 class Level(Window):
     '''Base Level class
+
     Initilization arguments: 
         *settings - Dict with settings from class Settings: dict
+
     Methods:
         *game_cycle - Start the window(game)
         *event_handler - Work with events
@@ -118,13 +122,13 @@ class Level(Window):
         rel_path = '/assets/sprites/traps/thorn.png'
         thorn_path = self.settings['path'] + rel_path
         return self.get_sprite(thorn_path, position, sprite_groups)
-    
+
     def brick(self, position):
         sprite_groups = [self.wall_sprites]
         rel_path = '/assets/sprites/brick/brick.png'
         brick_path = self.settings['path'] + rel_path
         return self.get_sprite(brick_path, position, sprite_groups)
-    
+
     def borders(self):
         self.floor([0, 0])
         self.floor([0, 470])
@@ -185,7 +189,7 @@ class MainWindow(Window):
         sprites = f'{self.settings["path"]}/assets/sprites/'
         background_path = f'{sprites}/background/main_window_background.png'
         self.background_filler = pygame.image.load(background_path)
-        self.main_text = Text('Christmas Adventures', 'main_text', settings)
+        self.main_text = Text('The Cult of Escape', 'main_text', settings)
         self.buttons = self.get_buttons()
         self.get_labels()
 
@@ -197,13 +201,9 @@ class MainWindow(Window):
             list(self.buttons.keys()))
         for button in self.buttons:
             button = self.buttons[button]
-            label = Label(
-                self.texts[button.code_name],
-                f'{button.code_name}_label',
-                self.manager,
-                [1, 1],
-                [1, 1],
-            )
+            label = Label(self.texts[button.code_name],
+                          button.code_name + '_label',
+                          self.manager, [1, 1], [1, 1])
             label.connect_to_button(
                 button, self.settings['window_size'], space)
 
@@ -221,14 +221,9 @@ class MainWindow(Window):
         return buttons
 
     def show_faq(self) -> Message:
-        return Message(
-            self.texts['faq_text'],
-            'faq_text',
-            self.manager,
-            [170, 100],
-            [400, 300],
-            'FAQ',
-        )
+        window = Message(self.texts['faq_text'], 'faq_text', self.manager,
+                         [170, 100], [400, 300], 'FAQ')
+        return window
 
     def game_cycle(self) -> None:
         running = True
@@ -248,16 +243,14 @@ class MainWindow(Window):
             pygame.display.update()
 
     def is_button_event(self, event) -> bool:
-        if (
-            event.user_type == pygame_gui.UI_BUTTON_PRESSED
-            and event.ui_element.text == ''
-        ):
-            for button_name in self.buttons:
-                if event.ui_element == self.buttons[button_name]:
-                    return True
+        if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+            if event.ui_element.text == '':
+                for button_name in self.buttons:
+                    if event.ui_element == self.buttons[button_name]:
+                        return True
         return False
 
-    def event_handler(self, event, running, faq=None):
+    def event_handler(self, event, running, faq=None) -> (bool, None):
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
@@ -272,4 +265,5 @@ class MainWindow(Window):
                 self.mode = 'level'
                 running = False
         return (running, faq)
+
 
