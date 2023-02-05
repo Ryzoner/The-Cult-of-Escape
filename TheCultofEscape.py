@@ -49,6 +49,7 @@ class GameManager:
     def next_level(self):
         self.level_number += 1
         hit_points = self.game.santa.hit_points
+        return self.levels[self.level_number](self.settings, hit_points)
 
     def run_game(self) -> None:
         start_mode = self.game.mode
