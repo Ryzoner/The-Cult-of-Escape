@@ -1,5 +1,5 @@
 from Window import MainWindow
-from Levels import FirstLevel
+from Levels import FirstLevel, SecondLevel
 from Utils import Settings
 
 import pygame
@@ -20,11 +20,12 @@ class GameManager:
         *start - Start game manager and get game class -> None
         *run_game - Launch game -> None
     '''
-    __slots__ = ['settings', 'level_number', 'hit_points', 'game']
+    __slots__ = ['settings', 'level_number', 'hit_points', 'game', 'levels']
 
     def __init__(self, settings: dict):
         self.settings: dict = settings
         self.level_number: int = 1
+        self.levels = {1: FirstLevel, 2: SecondLevel}
 
     def start(self, mode: str = '') -> None:
         '''
@@ -44,6 +45,10 @@ class GameManager:
             self.level_number = 1
             self.game = LoseWindow(self.settings)
         self.run_game()
+        
+    def next_level(self):
+        self.level_number += 1
+        hit_points = self.game.santa.hit_points
 
     def run_game(self) -> None:
         start_mode = self.game.mode
@@ -53,7 +58,7 @@ class GameManager:
             if new_mode in ['win', 'level']:
                 try:
                     self.hit_points = self.game.santa.hit_points
-                except:
+                except Exception:
                     self.hit_points = 10
             self.start(new_mode)
 
