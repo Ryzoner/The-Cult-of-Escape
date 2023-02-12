@@ -236,9 +236,10 @@ class Particles(pygame.sprite.Sprite):
 
     def update(self) -> None:
         self.velocity[1] += 1
+        window_size = self.settings['window_size']
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
-        if not self.rect.colliderect(
-            (0, 0, self.settings['window_size'][0],
-             self.settings['window_size'][1])):
+        if not self.rect.colliderect((
+            0, 0, [0], window_size[0], window_size[1]
+        )):
             self.kill()

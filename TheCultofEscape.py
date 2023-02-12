@@ -29,6 +29,7 @@ class GameManager:
     def __init__(self, settings: dict):
         self.settings: dict = settings
         self.level_number: int = 1
+        self.hit_points = 10
         self.levels = {1: FirstLevel, 2: SecondLevel, 3: ThirdLevel}
         self.windows = {'main_window': [MainWindow, self.settings],
                         'level': [FirstLevel, self.settings, 10],
@@ -60,12 +61,12 @@ class GameManager:
             if new_mode in ['win', 'level']:
                 try:
                     self.hit_points = self.game.santa.hit_points
-                except Exception:
+                except AttributeError:
                     self.hit_points = 10
             self.start(new_mode)
 
 
 if __name__ == "__main__":
-    app = GameManager(Settings(SETTINGS_FILE).settings)
-    app.start('main_window')
+    game_manager = GameManager(Settings(SETTINGS_FILE).settings)
+    game_manager.start('main_window')
 pygame.quit()
