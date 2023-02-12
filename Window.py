@@ -258,7 +258,7 @@ class Level(Window):
             image_path = self.settings['path'] +\
                 '/assets/sprites/icons/heart/red_heart.png'
             heart.image = pygame.image.load(image_path)
-            heart.rect = pygame.Rect((*[20 + (i + x) * 15, 20],), (*[0, 0],))
+            heart.rect = pygame.Rect((*[20 + i * 15, 20],), (*[0, 0],))
             hearts.add(heart)
         hearts.draw(self.screen)
 
@@ -366,11 +366,16 @@ class MainWindow(Window):
 class LoseWindow(Window):
     def __init__(self, settings: dict):
         super().__init__(settings, mode='lose_window')
-        self.buttons = self.get_buttons()
+        self.buttons: list = self.get_buttons()
+        self.main_text = Text('Game Over', 'main_text',
+                              settings)
+        background_path = self.settings['path'] + \
+            '/assets/sprites/background/main_window_background.png'
+        self.background_filler = pygame.image.laod(background_path)
 
-    def get_buttons(self) -> dict:
-        images_name_list = ['replay']
-        buttons = {}
+    def get_buttons(self) -> list:
+        images_name_list = ['replay'] * 10
+        buttons = []
         space = self.settings['window_size'][0] // len(images_name_list)
         for index, name in enumerate(images_name_list):
             button = Button(
@@ -378,7 +383,7 @@ class LoseWindow(Window):
                 [5 + index * space, self.settings['window_size'][1] - 55])
             gui_path = self.settings['path'] + '/assets/sprites/icons/gui/'
             button.set_icon(gui_path + name + '.png')
-            buttons[name] = button
+            buttons.append(button)
         return buttons
 
     def game_cycle(self) -> None:
@@ -390,9 +395,13 @@ class LoseWindow(Window):
                 self.manager.process_events(event)
             self.clock.tick(self.fps)
             self.screen.blit(self.background_filler, [0, 0])
+            self.draw()
             self.manager.draw_ui(self.screen)
             self.manager.update(time_delta)
             pygame.display.update()
+            
+    def draw(self):
+        self.main_text.draw(self.screen)
 
     def is_button_event(self, event) -> bool:
         if (
@@ -400,7 +409,7 @@ class LoseWindow(Window):
             and event.ui_element.text == ''
         ):
             for button_name in self.buttons:
-                if event.ui_element == self.buttons[button_name]:
+                if event.ui_element == button_name:
                     return True
         return False
 
@@ -413,6 +422,7 @@ class LoseWindow(Window):
                 running = False
         elif event.type == pygame.USEREVENT and self.is_button_event(event):
             button_name = event.ui_element.code_name
+            print(button_name)
             if button_name == 'replay':
                 self.mode = 'level'
                 running = False
