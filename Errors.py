@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 class SpriteError(Exception):
     '''Can't find sprite file error'''
     __slots__ = ['text']

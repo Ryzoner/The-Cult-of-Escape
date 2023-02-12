@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from Utils import DataBase
 
 import pygame_gui
@@ -15,6 +17,11 @@ class Text(pygame.font.Font):
         *font_size - Size of font: int
         *font_path - Path to font file: str
         *font_name - Font name in database (if have'nt path): str
+        
+    Methods:
+        *draw - Draw itself on screen
+        *get_font - Load font from database
+        *get_text - Load rendered text
     '''
     __slots__ = ['settings', 'rendered_text', 'code_name']
 
@@ -22,8 +29,8 @@ class Text(pygame.font.Font):
                  font_size=50, font_path=None, font_name=None):
         self.settings = settings
         self.code_name = code_name
-        if font_path == None:
-            if font_name == None:
+        if font_path is None:
+            if font_name is None:
                 font_name = 'christmas'
             font_path = self.get_font(font_name)
         super().__init__(font_path, font_size)
@@ -32,15 +39,14 @@ class Text(pygame.font.Font):
     def get_font(self, font_name: str) -> str:
         db_path = f'{self.settings["path"]}/assets/database/'
         database = DataBase(db_path)
-        font_path = f"{self.settings['path']}/{database.get_font(font_name)}"
-        return font_path
+        return f"{self.settings['path']}/{database.get_font(font_name)}"
 
     def get_text(self, text: str,
                  position: list = None) -> (pygame.font.Font.render, (int, int)):
         rendered_text = self.render(text, True, (255, 255, 255))
-        if position == None:
+        if position is None:
             text_x = self.settings['window_size'][0] // 2 -\
-                rendered_text.get_width() // 2
+                    rendered_text.get_width() // 2
             text_y = 20
         else:
             text_x, text_y = position[0], position[1]
@@ -76,9 +82,7 @@ class Message(pygame_gui.windows.UIMessageWindow):
         self.code_name = code_name
 
     def is_alive(self) -> bool:
-        if self.dismiss_button.pressed or self.close_window_button.pressed:
-            return False
-        return True
+        return not self.dismiss_button.pressed and not self.close_window_button.pressed
 
 
 class Label(pygame_gui.elements.UIButton):
@@ -162,15 +166,14 @@ class Button(pygame_gui.elements.UIButton):
         self.rebuild()
 
     def get_rect(self, position: list, size: list) -> pygame.Rect:
-        label_rect = pygame.Rect((*position,), (*size,))
-        return label_rect
+        return pygame.Rect((*position,), (*size,))
 
     def move(self, position: list) -> None:
         self.rect.x = position[0]
         self.rect.y = position[1]
 
     def is_pressed(self, event: pygame.event) -> bool:
-        if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
-            if event.ui_element == self:
-                return True
-        return False
+        return (
+            event.user_type == pygame_gui.UI_BUTTON_PRESSED
+            and event.ui_element == self
+        )

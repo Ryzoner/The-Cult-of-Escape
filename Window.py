@@ -1,19 +1,19 @@
+# -*- coding: utf-8 -*-
+
 import pygame
 import pygame_gui
 import pyganim
 from Utils import DataBase, Sounds
 from UI import Text, Button, Label, Message
-from Sprites import Player
+from Sprites import Player, Particles
 
 
 class Window:
     '''Base window class
-
     Initilization arguments: 
         *settings - Settings from 'Settings.setting' class: dict
         *mode - Mode of window //examples 'main_window', 'login_window' 
                 and etc : str
-
     Methods:
         *get_screen - Return window with selected title and size: pygame.Surface 
     '''
@@ -52,10 +52,8 @@ class Window:
 
 class Level(Window):
     '''Base Level class
-
     Initilization arguments: 
         *settings - Dict with settings from class Settings: dict
-
     Methods:
         *game_cycle - Start the window(game)
         *event_handler - Work with events
@@ -92,7 +90,7 @@ class Level(Window):
         self.start_hit_points = self.santa.hit_points
         self.get_animations()
         self.animation_list = []
-        
+
     def get_animations(self):
         self.anims['chainsaw'] = pyganim.PygAnimation(
             [
@@ -180,7 +178,7 @@ class Level(Window):
         self.floor([0, 470])
         self.wall([0, 0])
         self.wall([750, 0])
-        
+
     def chainsaw(self, position):
         self.animation_list.append(['chainsaw', position])
         sprite_groups = [self.trap_sprites]
@@ -199,10 +197,7 @@ class Level(Window):
         running = True
         while running:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                    break
-                running = self.event_handler(event)
+                running = False if event.type == pygame.QUIT else self.event_handler(event)
             if self.santa.is_collide(self.sprite_groups['exit']):
                 self.mode = 'win'
                 running = False
@@ -237,7 +232,8 @@ class Level(Window):
     def draw(self) -> None:
         self.all_sprites.draw(self.screen)
         self.santa.update(
-            self.sprite_groups['wall'], self.move_direction, self.is_jumping)
+            self.sprite_groups['wall'], self.all_sprites,
+            self.move_direction, self.is_jumping)
         self.move_direction = False
         self.is_jumping = False
         self.santa.skin_group.draw(self.screen)
@@ -245,11 +241,11 @@ class Level(Window):
         for animation_info in self.animation_list:
             animation_key, position = animation_info
             self.anims[animation_key].blit(self.screen, (*position,))
-        
+
     def draw_hearts(self):
         x = 0
         hearts = pygame.sprite.Group()
-        for _ in range(self.start_hit_points - self.santa.hit_points):
+        for i in range(self.start_hit_points - self.santa.hit_points):
             heart = pygame.sprite.Sprite()
             image_path = self.settings['path'] +\
                 '/assets/sprites/icons/heart/red_heart.png'
@@ -367,3 +363,58 @@ class MainWindow(Window):
         return (running, faq)
 
 
+class LoseWindow(Window):
+    def __init__(self, settings: dict):
+        super().__init__(settings, mode='lose_window')
+        self.buttons = self.get_buttons()
+
+    def get_buttons(self) -> dict:
+        images_name_list = ['replay']
+        buttons = {}
+        space = self.settings['window_size'][0] // len(images_name_list)
+        for index, name in enumerate(images_name_list):
+            button = Button(
+                '', name, self.manager,
+                [5 + index * space, self.settings['window_size'][1] - 55])
+            gui_path = self.settings['path'] + '/assets/sprites/icons/gui/'
+            button.set_icon(gui_path + name + '.png')
+            buttons[name] = button
+        return buttons
+
+    def game_cycle(self) -> None:
+        running = True
+        faq = None
+        while running:
+            time_delta = self.clock.tick(60) / 1000.0
+            for event in pygame.event.get():
+                running = self.event_handler(event, running)
+            self.manager.process_events(event)
+            self.clock.tick(self.fps)
+            self.screen.blit(self.background_filler, [0, 0])
+            self.manager.draw_ui(self.screen)
+            self.manager.update(time_delta)
+            pygame.display.update()
+
+    def is_button_event(self, event) -> bool:
+        if (
+            event.user_type == pygame_gui.UI_BUTTON_PRESSED
+            and event.ui_element.text == ''
+        ):
+            for button_name in self.buttons:
+                if event.ui_element == self.buttons[button_name]:
+                    return True
+        return False
+
+    def event_handler(self, event, running) -> (bool, None):
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                self.mode = 'level'
+                running = False
+        elif event.type == pygame.USEREVENT and self.is_button_event(event):
+            button_name = event.ui_element.code_name
+            if button_name == 'replay':
+                self.mode = 'level'
+                running = False
+        return running

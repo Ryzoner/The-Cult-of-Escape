@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from configparser import ConfigParser, SectionProxy
 from os.path import dirname, abspath
 from locale import getdefaultlocale

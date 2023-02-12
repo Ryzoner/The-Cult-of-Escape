@@ -1,4 +1,6 @@
-from Window import MainWindow
+# -*- coding: utf-8 -*-
+
+from Window import MainWindow, LoseWindow
 from Levels import FirstLevel, SecondLevel, ThirdLevel
 from Utils import Settings
 
@@ -19,37 +21,36 @@ class GameManager:
     Methods:
         *start - Start game manager and get game class -> None
         *run_game - Launch game -> None
+        *next_level - Launch next level -> None
     '''
-    __slots__ = ['settings', 'level_number', 'hit_points', 'game', 'levels']
+    __slots__ = ['settings', 'level_number', 'hit_points', 'game', 'levels',
+                 'windows']
 
     def __init__(self, settings: dict):
         self.settings: dict = settings
         self.level_number: int = 1
-        self.levels = {2: FirstLevel, 3: SecondLevel, 5: ThirdLevel}
+        self.levels = {1: FirstLevel, 2: SecondLevel, 3: ThirdLevel}
+        self.windows = {'main_window': [MainWindow, self.settings],
+                        'level': [FirstLevel, self.settings, 10],
+                        'lose': [LoseWindow, self.settings]}
 
     def start(self, mode: str = '') -> None:
         '''
         Arguments:
-            mode - type of window
+            mode - type of window: str
         '''
-        if mode == 'main_window':
-            self.game = MainWindow(self.settings)
-        elif mode == 'settings':
-            self.game = SettingsWindow(self.settings)
-        elif mode == 'level':
-            self.game = FirstLevel(self.settings, 10)
-        elif mode == 'win':
-            self.level_number += 1
-            self.game = self.next_level()
-        elif mode == 'lose':
+        if mode == 'lose':
             self.level_number = 1
-            self.game = LoseWindow(self.settings)
+        if mode == 'win':
+            self.game = self.next_level()
+        else:
+            self.game = self.windows[mode][0](*self.windows[mode][1:])
         self.run_game()
-        
+
     def next_level(self):
         self.level_number += 1
-        hit_points = self.game.santa.hit_points
-        return self.levels[self.level_number](self.settings, hit_points)
+        return self.levels[self.level_number](
+            self.settings, self.game.santa.hit_points)
 
     def run_game(self) -> None:
         start_mode = self.game.mode
