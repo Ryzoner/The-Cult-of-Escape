@@ -1,5 +1,5 @@
 from Window import MainWindow
-from Levels import FirstLevel, SecondLevel
+from Levels import FirstLevel, SecondLevel, ThirdLevel
 from Utils import Settings
 
 import pygame
@@ -25,7 +25,7 @@ class GameManager:
     def __init__(self, settings: dict):
         self.settings: dict = settings
         self.level_number: int = 1
-        self.levels = {1: FirstLevel, 2: SecondLevel}
+        self.levels = {2: FirstLevel, 3: SecondLevel, 5: ThirdLevel}
 
     def start(self, mode: str = '') -> None:
         '''

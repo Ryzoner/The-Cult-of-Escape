@@ -1,5 +1,6 @@
 import pygame
 import pygame_gui
+import pyganim
 from Utils import DataBase, Sounds
 from UI import Text, Button, Label, Message
 from Sprites import Player
@@ -62,7 +63,8 @@ class Level(Window):
      '''
     __slots__ = ['santa', 'all_sprites', 'exit_sprites',
                  'gui_sprites', 'wall_sprites', 'sprite_groups', 'trap_sprites',
-                 'move_direction', 'is_jumping', 'is_sitting', 'start_hit_points']
+                 'move_direction', 'is_jumping', 'is_sitting', 'start_hit_points',
+                 'animation_list', 'anims']
 
     def __init__(self, settings: dict):
         super().__init__(settings, mode='level')
@@ -74,6 +76,7 @@ class Level(Window):
         self.gui_sprites = pygame.sprite.Group()
         self.wall_sprites = pygame.sprite.Group()
         self.trap_sprites = pygame.sprite.Group()
+        self.anims = {}
         self.sprite_groups = {'all': self.all_sprites,
                               'exit': self.exit_sprites,
                               'gui': self.gui_sprites,
@@ -87,6 +90,35 @@ class Level(Window):
                                     2, self.settings['skin'], self.all_sprites,
                                     self.settings)
         self.start_hit_points = self.santa.hit_points
+        self.get_animations()
+        self.animation_list = []
+        
+    def get_animations(self):
+        self.anims['chainsaw'] = pyganim.PygAnimation(
+            [
+                (
+                    self.settings['path']
+                    + f'/assets/sprites/traps/chainsaw/chainsaw_{i}.png',
+                    100,
+                )
+                for i in range(6)
+            ]
+        )
+        self.anims['chainsaw'].play()
+        self.anims['vulkan'] = pyganim.PygAnimation(
+            [
+                (
+                    self.settings['path']
+                    + f'/assets/sprites/traps/vulkan/vulkan_{i}.png',
+                    100,
+                )
+                for i in range(26)
+            ]
+        )
+        self.anims['vulkan'].play()
+
+    def draw_animation(self, key, position):
+        self.anims[key].blit(self.screen, (*position,))
 
     def get_sprite(self, image, position,
                    sprite_groups=[]) -> pygame.sprite.Sprite:
@@ -120,21 +152,20 @@ class Level(Window):
 
     def thorn(self, position, turn='top') -> pygame.sprite.Sprite:
         sprite_groups = [self.trap_sprites]
-        rel_path = '/assets/sprites/traps/thorn.png'
         if turn == 'top':
-            rel_path = '/assets/sprites/traps/thorn.png'
+            rel_path = '/assets/sprites/traps/thorns/thorn.png'
         elif turn == 'left':
-            rel_path = '/assets/sprites/traps/thorn_left.png'
+            rel_path = '/assets/sprites/traps/thorns/thorn_left.png'
         elif turn == 'right':
-            rel_path = '/assets/sprites/traps/thorn_right.png'
+            rel_path = '/assets/sprites/traps/thorns/thorn_right.png'
         elif turn == 'down':
-            rel_path = '/assets/sprites/traps/thorn_down.png'
+            rel_path = '/assets/sprites/traps/thorns/thorn_down.png'
         thorn_path = self.settings['path'] + rel_path
         return self.get_sprite(thorn_path, position, sprite_groups)
 
     def thorns5x(self, position):
         sprite_groups = [self.trap_sprites]
-        rel_path = '/assets/sprites/traps/thorns_x5.png'
+        rel_path = '/assets/sprites/traps/thorns/thorns_x5.png'
         thorn_path = self.settings['path'] + rel_path
         return self.get_sprite(thorn_path, position, sprite_groups)
 
@@ -149,6 +180,20 @@ class Level(Window):
         self.floor([0, 470])
         self.wall([0, 0])
         self.wall([750, 0])
+        
+    def chainsaw(self, position):
+        self.animation_list.append(['chainsaw', position])
+        sprite_groups = [self.trap_sprites]
+        rel_path = '/assets/sprites/traps/chainsaw/chainsaw_0.png'
+        chainsaw_path = self.settings['path'] + rel_path
+        return self.get_sprite(chainsaw_path, position, sprite_groups)
+
+    def vulkan(self, position):
+        self.animation_list.append(['vulkan', position])
+        sprite_groups = [self.trap_sprites]
+        rel_path = '/assets/sprites/traps/vulkan/vulkan_25.png'
+        vulkan_path = self.settings['path'] + rel_path
+        return self.get_sprite(vulkan_path, position, sprite_groups)
 
     def game_cycle(self) -> None:
         running = True
@@ -176,7 +221,6 @@ class Level(Window):
         if event.type == pygame.MOUSEBUTTONDOWN:
             '''TELEPORT'''
             self.santa.rect.x, self.santa.rect.y = event.pos
-            print(event.pos)
         '''</DEBUG CHEATS>'''
         if event.type == pygame.KEYDOWN:
             keys = pygame.key.get_pressed()
@@ -198,6 +242,9 @@ class Level(Window):
         self.is_jumping = False
         self.santa.skin_group.draw(self.screen)
         self.draw_hearts()
+        for animation_info in self.animation_list:
+            animation_key, position = animation_info
+            self.anims[animation_key].blit(self.screen, (*position,))
         
     def draw_hearts(self):
         x = 0
