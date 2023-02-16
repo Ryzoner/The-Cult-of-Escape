@@ -39,6 +39,7 @@ class Text(pygame.font.Font):
     def get_font(self, font_name: str) -> str:
         db_path = f'{self.settings["path"]}/assets/database/'
         database = DataBase(db_path)
+        database.get_skins()
         return f"{self.settings['path']}/{database.get_font(font_name)}"
 
     def get_text(self, text: str,
@@ -155,14 +156,15 @@ class Button(pygame_gui.elements.UIButton):
     def load_icon(self, icon_path) -> pygame.Surface:
         return pygame.transform.scale(pygame.image.load(icon_path), [50, 50])
 
-    def set_icon(self, icon_path) -> None:
+    def set_icon(self, icon_path, is_pressed_version=True) -> None:
         icon_extension = '.' + icon_path.split('.')[-1]
-        hovered_icon_path = '.'.join(icon_path.split(icon_extension)[:-1]) +\
-            '_pressed' + icon_extension
         icon = self.load_icon(icon_path)
-        hovered_icon = self.load_icon(hovered_icon_path)
+        if is_pressed_version:
+            hovered_icon_path = '.'.join(icon_path.split(icon_extension)[:-1]) +\
+                '_pressed' + icon_extension
+            hovered_icon = self.load_icon(hovered_icon_path)
+            self.hovered_image = hovered_icon
         self.normal_image = self.selected_image = icon
-        self.hovered_image = hovered_icon
         self.rebuild()
 
     def get_rect(self, position: list, size: list) -> pygame.Rect:
