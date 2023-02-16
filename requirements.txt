@@ -1,3 +1,0 @@
-pygame
-pygame_gui
-pyganim
