@@ -186,9 +186,75 @@ class ThirdLevel(Level):
                 self.santa.update(
                     self.sprite_groups['wall'],
                     self.all_sprites,
-                    self.move_direction, self.is_jumping)
+                    self.move_direction, self.is_jumping, self.is_sitting)
                 self.move_direction = False
                 self.is_jumping = False
                 self.santa.skin_group.draw(self.screen)
                 self.draw_hearts()
             pygame.display.update()
+            
+            
+class FourthLevel(Level):
+    '''Third level
+    Have 12 thorns, 1 exit, 4 borders, 71 Bricks, 1 vulkan, 1 chainsaw
+    Difficulty - normal
+    Initilization arguments:
+        *settings - Dict with settings from class Settings: dict
+        *hit_points - Count of player lifes : int
+    Methods:
+        *get_sprites - Load level objects
+        *game_cycle - Game cycle with blindness effect
+    '''
+    __slots__ = ['bricks']
+
+    def __init__(self, settings: dict, hit_points: int):
+        super().__init__(settings)
+        self.bricks = 0
+        self.santa.hit_points: int = hit_points
+        self.get_sprites()
+
+    def get_sprites(self) -> None:
+        # Borders
+        self.borders()
+        # Traps
+        for x in range(100, 709, 32):
+            self.thorn([x, 453])
+        # Exit
+        self.exit([722, 77])
+
+    def game_cycle(self) -> None:
+        running = True
+        while running:
+            for event in pygame.event.get():
+                running = False if event.type == pygame.QUIT else self.event_handler(event)
+            if self.santa.is_collide(self.sprite_groups['exit']):
+                self.mode = 'win'
+                running = False
+            elif self.santa.hit_points <= 0:
+                self.mode = 'lose'
+                running = False
+            elif self.santa.is_collide(self.sprite_groups['trap']):
+                self.bricks = 0
+                self.santa.die()
+            self.clock.tick(self.fps)
+            self.screen.blit(self.background_filler, [0, 0])
+            self.draw()
+            pygame.display.update()
+
+    def event_handler(self, event: pygame.event) -> bool:
+        last_brick_pos = (0, 0)
+        if event.type == pygame.MOUSEBUTTONDOWN and self.bricks <= 3:
+            self.brick([*event.pos])
+            self.bricks += 1
+            last_brick_pos = event.pos
+        if event.type == pygame.KEYDOWN:
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_RIGHT]:
+                self.move_direction = 'rigth'
+            if keys[pygame.K_LEFT]:
+                self.move_direction = 'left'
+            if keys[pygame.K_DOWN]:
+                self.is_sitting = True
+            if keys[pygame.K_UP]:
+                self.is_jumping = True
+        return True

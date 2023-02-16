@@ -105,22 +105,45 @@ class Player(Sprite):
         *update - Update player info
     '''
     
+    __slots__ = ['skins', 'sounds', 'state', 'move_speed', 'particles',
+                 'jump_speed', 'flip_direction']
+    
     def __init__(self, position: list, hit_points: int, skin_name: str,
                  all_sprites: pygame.sprite.Group, settings: dict):
         super().__init__(position, hit_points, skin_name,
                          'assets/sprites/santa', all_sprites, settings)
         self.setup(self.get_skins()['stand'])
         self.skins: dict = self.get_skins()
-        self.state: dict = {'flip': False, 'stand': False}
+        self.state: dict = {'flip': False, 'stand': False, 'sit': False}
         db_path: str = self.settings['path'] + '/assets/database/'
         self.sounds = Sounds(db_path)
         self.move_speed, self.jump_speed = 0, 0
         self.to_spawn()
         self.particles = []
         self.set_group()
+        self.flip_direction = 'right'
+        
+    def stand(self):
+        self.state['sit'] = False
+        self.change_player_skin('stand')
+        old_flip_dir = self.flip_direction
+        self.flip_direction = 'right'
+        self.flip(old_flip_dir)
+
+    def sit(self):
+        self.state['sit'] = True
+        self.change_player_skin('sit')
+        old_flip_dir = self.flip_direction
+        self.flip_direction = 'right'
+        self.flip(old_flip_dir)
 
     def change_player_skin(self, skin_type: str = '') -> None:
         return self.change_skin(self.get_skins()[skin_type])
+    
+    def flip(self, direction):
+        if self.flip_direction != direction:
+            self.flip_direction = direction
+            self.image = pygame.transform.flip(self.image, True, False)
 
     def get_skins(self) -> dict:
         skin_file_name_stand = f'santa_{self.skin_name}_skin.png'
@@ -141,13 +164,18 @@ class Player(Sprite):
 
     def update(self, sprite_group, all_sprites,
                move_direction=False,
-               is_jumping=False) -> None:
+               is_jumping=False, is_sitting=False) -> None:
         for particle in self.particles:
             particle.update()
         if len(self.particles) >= 30:
             self.particles = self.particles[4:]
+        if is_sitting:
+            self.sit()
         if is_jumping and self.state['stand']:
-            self.jump_speed = -self.settings['jump_power']
+            if not self.state['sit']:
+                self.jump_speed = -self.settings['jump_power']
+            else:
+                self.stand()
         if move_direction == 'left':
             self.move_speed = -self.settings['step']
         elif move_direction == 'rigth':
@@ -156,6 +184,14 @@ class Player(Sprite):
             self.move_speed = 0
         if not self.state['stand']:
             self.jump_speed += self.settings['gravity']
+        if self.jump_speed != 0 and self.state['stand']:
+            self.sounds.play('jump')
+        if self.move_speed != 0 and self.state['stand']:
+            self.sounds.play('step')
+        if self.move_speed < 0:
+            self.flip('left')
+        if self.move_speed > 0:
+            self.flip('right')
         self.state['stand'] = False
         self.move(sprite_group, all_sprites)
 
@@ -236,10 +272,9 @@ class Particles(pygame.sprite.Sprite):
 
     def update(self) -> None:
         self.velocity[1] += 1
-        window_size = self.settings['window_size']
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
-        if not self.rect.colliderect((
-            0, 0, window_size[0], window_size[1]
-        )):
+        if not self.rect.colliderect(
+            (0, 0, self.settings['window_size'][0],
+             self.settings['window_size'][1])):
             self.kill()

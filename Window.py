@@ -3,10 +3,9 @@
 import pygame
 import pygame_gui
 import pyganim
-
+from Utils import DataBase, Sounds
 from UI import Text, Button, Label, Message
-from Sprites import Player
-from Utils import DataBase
+from Sprites import Player, Particles
 
 
 class Window:
@@ -20,7 +19,7 @@ class Window:
     '''
     __slots__ = ['settings', 'fps', 'mode', 'background_filler',
                  'text_filler', 'clock', 'screen', 'manager',
-                 'database']
+                 'database', 'sounds']
 
     def __init__(self, settings: dict, mode: str):
         pygame.event.set_allowed(
@@ -28,6 +27,8 @@ class Window:
              pygame.USEREVENT, pygame.MOUSEBUTTONUP])
         pygame.key.set_repeat(1, 50)
         self.settings: dict = settings
+        db_path: str = self.settings['path'] + '/assets/database/'
+        self.sounds = Sounds(db_path)
         self.manager = pygame_gui.UIManager(self.settings['window_size'])
         db_path = f'{self.settings["path"]}/assets/database/'
         self.database = DataBase(db_path)
@@ -63,7 +64,7 @@ class Level(Window):
     __slots__ = ['santa', 'all_sprites', 'exit_sprites',
                  'gui_sprites', 'wall_sprites', 'sprite_groups', 'trap_sprites',
                  'move_direction', 'is_jumping', 'is_sitting', 'start_hit_points',
-                 'animation_list', 'anims']
+                 'animation_list', 'anims', 'brick_sprites']
 
     def __init__(self, settings: dict):
         super().__init__(settings, mode='level')
@@ -75,9 +76,11 @@ class Level(Window):
         self.gui_sprites = pygame.sprite.Group()
         self.wall_sprites = pygame.sprite.Group()
         self.trap_sprites = pygame.sprite.Group()
+        self.brick_sprites = pygame.sprite.Group()
         self.anims = {}
         self.sprite_groups = {'all': self.all_sprites,
                               'exit': self.exit_sprites,
+                              'brick': self.brick_sprites,
                               'gui': self.gui_sprites,
                               'wall': self.wall_sprites,
                               'trap': self.trap_sprites}
@@ -169,7 +172,7 @@ class Level(Window):
         return self.get_sprite(thorn_path, position, sprite_groups)
 
     def brick(self, position):
-        sprite_groups = [self.wall_sprites]
+        sprite_groups = [self.wall_sprites, self.brick_sprites]
         rel_path = '/assets/sprites/brick/brick.png'
         brick_path = self.settings['path'] + rel_path
         return self.get_sprite(brick_path, position, sprite_groups)
@@ -205,6 +208,7 @@ class Level(Window):
             if self.santa.is_collide(self.sprite_groups['trap']):
                 self.santa.die()
             if self.santa.hit_points <= 0:
+                self.sounds.play('lose')
                 self.mode = 'lose'
                 running = False
             self.clock.tick(self.fps)
@@ -234,7 +238,8 @@ class Level(Window):
         self.all_sprites.draw(self.screen)
         self.santa.update(
             self.sprite_groups['wall'], self.all_sprites,
-            self.move_direction, self.is_jumping)
+            self.move_direction, self.is_jumping, self.is_sitting)
+        self.is_sitting = False
         self.move_direction = False
         self.is_jumping = False
         self.santa.skin_group.draw(self.screen)
@@ -244,6 +249,7 @@ class Level(Window):
             self.anims[animation_key].blit(self.screen, (*position,))
 
     def draw_hearts(self):
+        x = 0
         hearts = pygame.sprite.Group()
         for i in range(self.start_hit_points - self.santa.hit_points):
             heart = pygame.sprite.Sprite()
@@ -258,7 +264,7 @@ class Level(Window):
             image_path = self.settings['path'] +\
                 '/assets/sprites/icons/heart/red_heart.png'
             heart.image = pygame.image.load(image_path)
-            heart.rect = pygame.Rect((*[20 + i * 15, 20],), (*[0, 0],))
+            heart.rect = pygame.Rect((*[20 + (i + x) * 15, 20],), (*[0, 0],))
             hearts.add(heart)
         hearts.draw(self.screen)
 
@@ -277,6 +283,7 @@ class MainWindow(Window):
         self.main_text = Text('The Cult of Escape', 'main_text', settings)
         self.buttons = self.get_buttons()
         self.get_labels()
+        self.sounds.play('theme')
 
     def draw(self) -> None:
         self.main_text.draw(self.screen)
@@ -326,9 +333,9 @@ class MainWindow(Window):
             time_delta = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
                 running, faq = self.event_handler(event, running, faq)
-                self.manager.process_events(event)
             if faq != None and not faq.is_alive():
                 faq.kill()
+            self.manager.process_events(event)
             self.clock.tick(self.fps)
             self.screen.blit(self.background_filler, [0, 0])
             self.draw()
@@ -360,6 +367,8 @@ class MainWindow(Window):
             elif button_name == 'play':
                 self.mode = 'level'
                 running = False
+        if not running:
+            self.sounds.stop_all()
         return (running, faq)
 
 
@@ -367,15 +376,17 @@ class LoseWindow(Window):
     def __init__(self, settings: dict):
         super().__init__(settings, mode='lose_window')
         self.buttons: list = self.get_buttons()
-        self.main_text = Text('Game Over', 'main_text',
-                              settings)
+        self.main_text = Text('Game over', 'main_text', settings)
         background_path = self.settings['path'] + \
             '/assets/sprites/background/main_window_background.png'
-        self.background_filler = pygame.image.laod(background_path)
+        self.background_filler = pygame.image.load(background_path)
+        
+        self.sounds.stop_all()
+        self.sounds.fast_play('lose')
 
-    def get_buttons(self) -> list:
-        images_name_list = ['replay'] * 10
-        buttons = []
+    def get_buttons(self) -> dict:
+        images_name_list = ['replay']
+        buttons = {}
         space = self.settings['window_size'][0] // len(images_name_list)
         for index, name in enumerate(images_name_list):
             button = Button(
@@ -383,25 +394,22 @@ class LoseWindow(Window):
                 [5 + index * space, self.settings['window_size'][1] - 55])
             gui_path = self.settings['path'] + '/assets/sprites/icons/gui/'
             button.set_icon(gui_path + name + '.png')
-            buttons.append(button)
+            buttons[name] = button
         return buttons
 
     def game_cycle(self) -> None:
         running = True
+        faq = None
         while running:
             time_delta = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
                 running = self.event_handler(event, running)
-                self.manager.process_events(event)
+            self.manager.process_events(event)
             self.clock.tick(self.fps)
             self.screen.blit(self.background_filler, [0, 0])
-            self.draw()
             self.manager.draw_ui(self.screen)
             self.manager.update(time_delta)
             pygame.display.update()
-            
-    def draw(self):
-        self.main_text.draw(self.screen)
 
     def is_button_event(self, event) -> bool:
         if (
@@ -409,7 +417,7 @@ class LoseWindow(Window):
             and event.ui_element.text == ''
         ):
             for button_name in self.buttons:
-                if event.ui_element == button_name:
+                if event.ui_element == self.buttons[button_name]:
                     return True
         return False
 
@@ -422,8 +430,38 @@ class LoseWindow(Window):
                 running = False
         elif event.type == pygame.USEREVENT and self.is_button_event(event):
             button_name = event.ui_element.code_name
-            print(button_name)
             if button_name == 'replay':
                 self.mode = 'level'
                 running = False
+        if not running:
+            self.sounds.stop_all()
+        return running
+    
+    
+class EndWindow(Window):
+    def __init__(self, settings: dict):
+        super().__init__(settings, mode='win_window')
+        background_path = self.settings['path'] + \
+            '/assets/sprites/background/win_background.png'
+        self.background_filler = pygame.image.load(background_path)
+        self.sounds.play('win')
+
+    def game_cycle(self) -> None:
+        running = True
+        while running:
+            time_delta = self.clock.tick(60) / 1000.0
+            for event in pygame.event.get():
+                running = self.event_handler(event, running)
+            self.clock.tick(self.fps)
+            self.screen.blit(self.background_filler, [0, 0])
+            pygame.display.update()
+
+    def event_handler(self, event, running) -> bool:
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            self.mode = 'main_window'
+            running = False
+        if not running:
+            self.sounds.stop_all()
         return running

@@ -123,9 +123,13 @@ class Sounds:
                        'sound': pygame.mixer.Sound(path)}
                 for (name, path) in sounds}
 
-    def play(self, name, loops=1) -> None:
+    def play(self, name, loops=0) -> None:
+        self.stop(name)
         self.sounds[name]['sound'].play(loops)
-
+        
+    def fast_play(self, name):
+        self.sounds[name]['sound'].play(0)
+    
     def stop(self, name) -> None:
         self.sounds[name]['sound'].stop()
 
