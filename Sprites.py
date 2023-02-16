@@ -8,7 +8,6 @@ from Errors import SpriteError
 from Utils import Sounds
 
 
-
 class Sprite(pygame.sprite.Sprite):
     '''Base sprite class
 

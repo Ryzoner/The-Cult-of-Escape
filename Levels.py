@@ -171,9 +171,6 @@ class ThirdLevel(Level):
             if self.santa.is_collide(self.sprite_groups['exit']):
                 self.mode = 'win'
                 running = False
-            elif self.santa.hit_points <= 0:
-                self.mode = 'lose'
-                running = False
             elif self.santa.is_collide(self.sprite_groups['trap']):
                 self.santa.die()
             self.clock.tick(self.fps)
@@ -253,9 +250,6 @@ class FourthLevel(Level):
             if self.santa.is_collide(self.sprite_groups['exit']):
                 self.mode = 'win'
                 running = False
-            elif self.santa.hit_points <= 0:
-                self.mode = 'lose'
-                running = False
             elif self.santa.is_collide(self.sprite_groups['trap']):
                 self.bricks = 0
                 self.santa.die()
@@ -265,6 +259,15 @@ class FourthLevel(Level):
             self.manager.draw_ui(self.screen)
             self.manager.update(time_delta)
             pygame.display.update()
+            
+    def in_allowed_zone(self, position):
+        x = position[0]
+        y = position[1]
+        if x in range(64) and y in range(45, 225):
+            return False
+        elif x in range(684, 753) and y in range(50, 96):
+            return False
+        return True
 
     def event_handler(self, event: pygame.event) -> bool:
         if (

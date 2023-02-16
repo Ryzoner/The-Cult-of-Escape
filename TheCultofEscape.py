@@ -3,6 +3,10 @@ import logging
 
 import pygame
 
+from platform import platform
+from datetime import datetime
+import logging
+
 from Levels import FifthLevel, FirstLevel, FourthLevel, SecondLevel, ThirdLevel
 from Utils import Settings
 from Window import EndWindow, LoseWindow, MainWindow, ShopWindow
@@ -21,6 +25,10 @@ logging.basicConfig(
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S', level=logging.DEBUG)
 
+logging.basicConfig(
+    filename='./error_log.txt', filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S', level=logging.DEBUG)
 
 class GameManager:
     '''Main game class which launch game and control levels and windows
@@ -80,6 +88,19 @@ class GameManager:
                     self.hit_points = 10
             self.start(new_mode)
 
+
+def count_launch():
+    updated_number_of_games = str(
+        settings_manager.settings['number_of_games'] + 1)
+    settings_manager.save({'number_of_games': updated_number_of_games})
+
+
+settings_manager = Settings(SETTINGS_FILE)
+count_launch()
+
+settings_manager = Settings(SETTINGS_FILE)
+settings_manager.save({'number_of_games':
+                       str(settings_manager.settings['number_of_games'] + 1)})
 
 def count_launch():
     updated_number_of_games = str(
