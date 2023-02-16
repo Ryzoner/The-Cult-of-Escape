@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
+from os.path import exists
+from webbrowser import open as wb_open
 
 import pygame
 import pygame_gui
 import pyganim
-from UI import Text, Button, Label, Message
-from Sprites import Player, Ball
-from Utils import DataBase, Sounds, Settings
 
-from os.path import exists
-from webbrowser import open as wb_open
+from Sprites import Ball, Player
+from UI import Button, Label, Message, Text
+from Utils import DataBase, Settings, Sounds
 
 
 class Window:
@@ -114,6 +113,12 @@ class Level(Window):
         self.start_hit_points = self.santa.hit_points
         self.get_animations()
         self.animation_list = []
+        self.is_walking = False
+        
+    def reset(self):
+        self.move_direction = False
+        self.is_jumping = False
+        self.is_sitting = False
         self.is_walking = False
 
     def get_animations(self):
@@ -295,7 +300,7 @@ class Level(Window):
                 self.is_sitting = True
             if keys[pygame.K_UP]:
                 self.is_jumping = True
-            elif event.type == pygame.USEREVENT and self.is_button_event(event):
+        elif event.type == pygame.USEREVENT and self.is_button_event(event):
             button_name = event.ui_element.code_name
             if button_name == 'faq':
                 Message(self.texts['ordinary_level_tip'], 'Help',
@@ -475,7 +480,7 @@ class LoseWindow(Window):
         self.background_filler = pygame.image.load(background_path)
         
         self.sounds.stop_all()
-        self.sounds.fast_play('lose')
+        self.sounds.play('lose')
 
     def get_buttons(self) -> dict:
         images_name_list = ['replay']
@@ -682,7 +687,7 @@ class ShopWindow(Window):
             else:
                 self.settings['visited_github'] = 1
                 self.settings_manager.save({'visited_github': '1'})
-                wb_open('https://github.com/Ulbandus/ChristmasAdventures')
+                wb_open('https://github.com/Ryzoner/The-Cult-of-Escape')
         elif skin == 'thief':
             if self.settings['step'] != 5 or self.settings['gravity'] != 0.5:
                 change = True

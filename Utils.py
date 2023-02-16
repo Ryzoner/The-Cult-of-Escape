@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-
 from configparser import ConfigParser, SectionProxy
-from os.path import dirname, abspath
 from locale import getdefaultlocale
+from os.path import abspath, dirname
 from sqlite3 import connect
 
 import pygame
@@ -19,6 +17,7 @@ class DataBase:
         *get_text - Get dict with text on selected language (if it supported)
         *get_sounds - Get sounds list with tuples (path and pygame sound itself)
         *get_font - Return font with selected name
+        *get_skins - Return dict with all skins and they variations
     '''
     __slots__ = ['sound_db_path', 'selected_db_path', 'font_db_path',
                  'text_db_path', 'skins_db_path']
@@ -47,11 +46,10 @@ class DataBase:
                      7: 'build_level_tip'}
         return {decryptor[index]: title for index, title in enumerate(result)}
     
-    def get_skins(self):
-        self.selected_db_path = self.skins_db_path
-        result = self.execute(f'SELECT *\nFROM skins')
-        decryptor = {0: 'folder_path', 1: 'jump', 2: 'sit',
-                     3: 'stand'}
+    def get_skins(self) -> dict:
+        decryptor = {0: 'folder_path', 1: 'jump', 2: 'sit', 3: 'stand'}
+        self.selected_db_path: str = self.skins_db_path
+        result: list = self.execute(f'SELECT *\nFROM skins')
         return {sprite[0]: {decryptor[index]: sprite_path
                             for index, sprite_path in enumerate(sprite[1:])}
                 for sprite in result}
@@ -141,9 +139,6 @@ class Sounds:
     def play(self, name, loops=0) -> None:
         self.stop(name)
         self.sounds[name]['sound'].play(loops)
-        
-    def fast_play(self, name):
-        self.sounds[name]['sound'].play(0)
     
     def stop(self, name) -> None:
         self.sounds[name]['sound'].stop()

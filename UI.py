@@ -2,9 +2,8 @@
 
 from Utils import DataBase
 
-import pygame_gui
 import pygame
-
+import pygame_gui
 
 class Text(pygame.font.Font):
     '''Class for showing text on screen
@@ -12,8 +11,8 @@ class Text(pygame.font.Font):
     Initilization arguments: 
         *text - Text which you wanna display: str
         *code_name - Special name for Text object for identefication: str
-        *position - Text position on screen [x, y]: list
         *settings - Dict with settings from class Settings: dict
+        *position - Text position on screen [x, y]: list
         *font_size - Size of font: int
         *font_path - Path to font file: str
         *font_name - Font name in database (if have'nt path): str
@@ -42,8 +41,9 @@ class Text(pygame.font.Font):
         database.get_skins()
         return f"{self.settings['path']}/{database.get_font(font_name)}"
 
-    def get_text(self, text: str,
-                 position: list = None) -> (pygame.font.Font.render, (int, int)):
+    def get_text(
+            self, text: str,
+            position: list = None) -> (pygame.font.Font.render, (int, int)):
         rendered_text = self.render(text, True, (255, 255, 255))
         if position is None:
             text_x = self.settings['window_size'][0] // 2 -\

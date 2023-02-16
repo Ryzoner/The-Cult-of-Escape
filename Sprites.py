@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
+from os import listdir
+from os.path import exists
+from random import choice, randrange
+
+import pygame
 
 from Errors import SpriteError
 from Utils import Sounds
 
-from os.path import exists
-from os import listdir
-from random import choice, randrange
-
-import pygame
 
 
 class Sprite(pygame.sprite.Sprite):
