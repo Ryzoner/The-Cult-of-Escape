@@ -1,3 +1,5 @@
+'''This module contains all game error classes'''
+
 class SpriteError(Exception):
     '''Can't find sprite file error'''
     __slots__ = ['text']

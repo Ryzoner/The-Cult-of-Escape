@@ -1,19 +1,26 @@
+# -*- coding: utf-8 -*-
+
 from Utils import DataBase
 
-import pygame_gui
 import pygame
-
+import pygame_gui
 
 class Text(pygame.font.Font):
     '''Class for showing text on screen
+
     Initilization arguments: 
         *text - Text which you wanna display: str
         *code_name - Special name for Text object for identefication: str
-        *position - Text position on screen [x, y]: list
         *settings - Dict with settings from class Settings: dict
+        *position - Text position on screen [x, y]: list
         *font_size - Size of font: int
         *font_path - Path to font file: str
         *font_name - Font name in database (if have'nt path): str
+        
+    Methods:
+        *draw - Draw itself on screen
+        *get_font - Load font from database
+        *get_text - Load rendered text
     '''
     __slots__ = ['settings', 'rendered_text', 'code_name']
 
@@ -31,10 +38,12 @@ class Text(pygame.font.Font):
     def get_font(self, font_name: str) -> str:
         db_path = f'{self.settings["path"]}/assets/database/'
         database = DataBase(db_path)
+        database.get_skins()
         return f"{self.settings['path']}/{database.get_font(font_name)}"
 
-    def get_text(self, text: str,
-                 position: list = None):
+    def get_text(
+            self, text: str,
+            position: list = None) -> (pygame.font.Font.render, (int, int)):
         rendered_text = self.render(text, True, (255, 255, 255))
         if position is None:
             text_x = self.settings['window_size'][0] // 2 -\
@@ -50,6 +59,7 @@ class Text(pygame.font.Font):
 
 class Message(pygame_gui.windows.UIMessageWindow):
     '''Base Message (Message box) class
+
     Initilization arguments: 
         *text - Message text: str
         *code_name - Special name for Message box for identefication: str
@@ -57,6 +67,7 @@ class Message(pygame_gui.windows.UIMessageWindow):
         *position - Message box window position on screen [x, y]: list
         *size - Message box window size [w, h]: list
         *title - Message box window title: str
+
     Methods:
         *is_alive - Check is window alive
     '''
@@ -77,12 +88,14 @@ class Message(pygame_gui.windows.UIMessageWindow):
 
 class Label(pygame_gui.elements.UIButton):
     '''Base label class
+
     Initilization arguments: 
         *text - Label text: str
         *code_name - Special name for label for identefication: str
         *manager - pygame_gui manager: pygame_gui.UIManager
         *position - Label position on screen [x, y]: list
         *size - Label size [w, h]: list
+
     Methods:
         *connect_to_button - Connects label to button
         *move - Just label button to selected position: None
@@ -116,12 +129,14 @@ class Label(pygame_gui.elements.UIButton):
 
 class Button(pygame_gui.elements.UIButton):
     '''Base button class
+
     Initilization arguments: 
         *text - Button text: str
         *code_name - Special name for button for identefication: str
         *manager - pygame_gui manager: pygame_gui.UIManager
         *position - Button position on screen [x, y]: list
         *size - Button size [w, h]: list
+
     Methods:
         *load_icon - Load image and crop it to standart sizes: pygame.Surface
         *set_icon - Set icon for button: None
@@ -141,14 +156,15 @@ class Button(pygame_gui.elements.UIButton):
     def load_icon(self, icon_path) -> pygame.Surface:
         return pygame.transform.scale(pygame.image.load(icon_path), [50, 50])
 
-    def set_icon(self, icon_path) -> None:
+    def set_icon(self, icon_path, is_pressed_version=True) -> None:
         icon_extension = '.' + icon_path.split('.')[-1]
-        hovered_icon_path = '.'.join(icon_path.split(icon_extension)[:-1]) +\
-            '_pressed' + icon_extension
         icon = self.load_icon(icon_path)
-        hovered_icon = self.load_icon(hovered_icon_path)
+        if is_pressed_version:
+            hovered_icon_path = '.'.join(icon_path.split(icon_extension)[:-1]) +\
+                '_pressed' + icon_extension
+            hovered_icon = self.load_icon(hovered_icon_path)
+            self.hovered_image = hovered_icon
         self.normal_image = self.selected_image = icon
-        self.hovered_image = hovered_icon
         self.rebuild()
 
     def get_rect(self, position: list, size: list) -> pygame.Rect:

@@ -1,6 +1,6 @@
 from configparser import ConfigParser, SectionProxy
-from os.path import dirname, abspath
 from locale import getdefaultlocale
+from os.path import abspath, dirname
 from sqlite3 import connect
 
 import pygame
@@ -8,21 +8,25 @@ import pygame
 
 class DataBase:
     '''Class for working with sqlite3 databases
+
     Initilization arguments: 
         *db_folder_path - Path to folder with databases regarding C://: str
+
     Methods:
         *execute - Execute sqlite3 query
         *get_text - Get dict with text on selected language (if it supported)
         *get_sounds - Get sounds list with tuples (path and pygame sound itself)
         *get_font - Return font with selected name
+        *get_skins - Return dict with all skins and they variations
     '''
     __slots__ = ['sound_db_path', 'selected_db_path', 'font_db_path',
-                 'text_db_path']
+                 'text_db_path', 'skins_db_path']
 
     def __init__(self, db_folder_path: str):
         self.sound_db_path: str = f'{db_folder_path}/sounds.db'
         self.font_db_path: str = f'{db_folder_path}/fonts.db'
         self.text_db_path: str = f'{db_folder_path}/text.db'
+        self.skins_db_path: str = f'{db_folder_path}/skins.db'
         self.selected_db_path = self.sound_db_path
 
     def execute(self, command: str) -> str:
@@ -38,8 +42,17 @@ class DataBase:
             lang = 'en'
         result = self.execute(f'SELECT *\nFROM {lang}')[0]
         decryptor = {0: 'play', 1: 'shop', 2: 'faq', 3: 'settings',
-                     4: 'faq_text', 5: 'fps'}
+                     4: 'faq_text', 5: 'skin_blocked', 6: 'ordinary_level_tip',
+                     7: 'build_level_tip'}
         return {decryptor[index]: title for index, title in enumerate(result)}
+    
+    def get_skins(self) -> dict:
+        decryptor = {0: 'folder_path', 1: 'jump', 2: 'sit', 3: 'stand'}
+        self.selected_db_path: str = self.skins_db_path
+        result: list = self.execute(f'SELECT *\nFROM skins')
+        return {sprite[0]: {decryptor[index]: sprite_path
+                            for index, sprite_path in enumerate(sprite[1:])}
+                for sprite in result}
 
     def get_sounds(self) -> list([tuple, tuple, tuple, ...]):
         self.selected_db_path = self.sound_db_path
@@ -54,8 +67,10 @@ class DataBase:
 
 class Settings:
     '''Class wich can parse and save settings from setiings file (ext: .ini)
+
     Initilization arguments: 
         *settings_file_name - Path to settings file: str
+
     Methods:
         *all_settings - Parse all settings and return em
         *save - Write to settings given dictionary
@@ -70,7 +85,7 @@ class Settings:
     def all_settings(self) -> dict:
         self.settings_parser.read(self.settings_path, encoding='utf-8')
         dirty_settings: SectionProxy = self.settings_parser[
-            'ChristmasAdventures']
+            'TheCultofEscape']
         fps = int(dirty_settings['fps'])
         skin: str = dirty_settings['skin']
         window_size = list(
@@ -79,34 +94,41 @@ class Settings:
         gravity = float(dirty_settings['gravity'])
         step = int(dirty_settings['step'])
         jump_power = int(dirty_settings['jump_power'])
+        number_of_games = int(dirty_settings['number_of_games'])
         return {'fps': fps, 'path': path,
                 'window_size': window_size,
                 'skin': skin, 'gravity': gravity,
-                'step': step, 'jump_power': jump_power}
+                'step': step, 'jump_power': jump_power,
+                'number_of_games': number_of_games, 'file': 'settings.ini',
+                'visited_github': int(dirty_settings['visited_github'])}
 
     def save(self, new_settings: dict) -> None:
         for key in new_settings:
             self.settings_parser.set(
-                'ChristmasAdventures', key, new_settings[key])
+                'TheCultofEscape', key, new_settings[key])
         with open(self.settings_path, 'w', encoding='utf-8') as settings_file:
             self.settings_parser.write(settings_file)
 
 
 class Sounds:
     '''Class for working with sqlite3 databases
+
     Initilization arguments: 
         *database - Path sound database: str
+
     Methods:
         *get_sounds - Return dict with all sounds from database
         *play - Play sound by name a certain times
         *stop - Stop playing selected sound
         *stop_all - Stop ALL sound
+
     '''
     __slots__ = ['database', 'sounds']
 
     def __init__(self, database):
         self.database = DataBase(database)
         self.sounds = self.get_sounds()
+        self.sounds['step']['sound'].set_volume(0.5)
 
     def get_sounds(self) -> dict:
         sounds = self.database.get_sounds()
@@ -114,9 +136,10 @@ class Sounds:
                        'sound': pygame.mixer.Sound(path)}
                 for (name, path) in sounds}
 
-    def play(self, name, loops=1) -> None:
+    def play(self, name, loops=0) -> None:
+        self.stop(name)
         self.sounds[name]['sound'].play(loops)
-
+    
     def stop(self, name) -> None:
         self.sounds[name]['sound'].stop()
 
